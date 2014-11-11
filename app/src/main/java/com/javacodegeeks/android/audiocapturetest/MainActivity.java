@@ -1,15 +1,25 @@
 package com.javacodegeeks.android.audiocapturetest;
 import android.app.Activity;
+import android.content.ActivityNotFoundException;
+import android.content.Intent;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.SystemClock;
+import android.speech.RecognizerIntent;
 import android.util.Log;
+import android.view.View;
+import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.ProgressBar;
+import android.widget.TextView;
+import android.widget.Toast;
 import android.widget.ToggleButton;
+
+import java.util.ArrayList;
+import java.util.Locale;
 
 public class MainActivity extends Activity {
 
@@ -27,6 +37,11 @@ public class MainActivity extends Activity {
 
     private int lastLevel = 0;
 
+    private final int REQ_CODE_SPEECH_INPUT = 100;
+    private TextView txtSpeechInput;
+    private TextView maxVolumeTv;
+
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -38,6 +53,16 @@ public class MainActivity extends Activity {
         level.setMax(32676);
 
         ToggleButton record = (ToggleButton) findViewById(R.id.togglebutton_record);
+        Button asrTest = (Button) findViewById(R.id.asr_test);
+        txtSpeechInput = (TextView) findViewById(R.id.txtSpeechInput);
+        maxVolumeTv = (TextView) findViewById(R.id.maxVolumeText);
+
+        asrTest.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                promptSpeechInput();
+            }
+        });
 
         record.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
 
@@ -69,7 +94,7 @@ public class MainActivity extends Activity {
                     audio.release();
                     audio = null;
                     handler.removeCallbacks(update);
-                    Log.e("Max audio",Integer.toString(maxVolume));
+                    maxVolumeTv.setText(Integer.toString(maxVolume));
                 }
 
             }
@@ -124,4 +149,45 @@ public class MainActivity extends Activity {
         }
 
     };
+
+    /**
+     * Showing google speech input dialog
+     * */
+    private void promptSpeechInput() {
+        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault());
+        intent.putExtra(RecognizerIntent.EXTRA_PROMPT,
+                getString(R.string.speech_prompt));
+        try {
+            startActivityForResult(intent, REQ_CODE_SPEECH_INPUT);
+        } catch (ActivityNotFoundException a) {
+            Toast.makeText(getApplicationContext(),
+                    getString(R.string.speech_not_supported),
+                    Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    /**
+     * Receiving speech input
+     * */
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        switch (requestCode) {
+            case REQ_CODE_SPEECH_INPUT: {
+                if (resultCode == RESULT_OK && null != data) {
+
+                    ArrayList<String> result = data
+                            .getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+                    Log.e("results",result.toString());
+                    txtSpeechInput.setText(result.get(0));
+                }
+                break;
+            }
+
+        }
+    }
 }
